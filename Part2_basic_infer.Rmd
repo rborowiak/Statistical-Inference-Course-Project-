@@ -1,0 +1,123 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Statistical Inference Course Project - PART 2: Basic Inferential Data Analysis
+
+RB,   
+16.01.2021
+
+```{r results='hide', message=FALSE, warning=FALSE}
+library(datasets)
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lattice)
+library(MASS)
+```
+
+
+## Load  data set
+
+```{r}
+data(ToothGrowth)
+```
+
+## Description
+
+In this analysis inferential statistics is used to investigate the effect of the 
+dose levels of vitamin C (0.5, 1, and 2 mg/day) on the length of odontoblasts (cells responsible for tooth growth) in 60 guinea pigs. 
+To each animal the dosis was supplied by two different delivery methods (orange juice or ascorbic acid).
+
+```{r}
+str(ToothGrowth)
+```
+
+Apparenttly, the data set contains 60 observations (rows) on 3 variables (columns).
+From the documentation we see that "len" describes the length of the odontoblasts, "supp" gives information about the supplement type (ascorbic acid coded as "VC" or orange juice coded as "OJ") and the "dose" those is given in mg/day 
+The first column describes the length of odontoblasts, the second column describes the 
+supply method and the third column gives information about the dose level.
+
+
+## Explorative Data Analysis
+
+To get a first grasp on the data lets plot it first!
+
+```{r}
+qplot(x = dose, y = len, data = ToothGrowth, 
+      title = "Fig. 1, Tooth Growth Dependence on Dose and Supplement Type", 
+      geom=c("point", "smooth"), method="lm", facets=.~supp, 
+      xlab="Dose of Vitamine C in mg/day", ylab="Length of odontoblasts [a.u.]")
+```
+
+**Fitting Linear Model to data to explore the dependency between length of otontoblasts and dose level**
+```{r}
+ToothGrowth_VC <- filter(ToothGrowth, supp=="VC")
+ToothGrowth_OJ <- filter(ToothGrowth, supp=="OJ")
+res_VC <- lm(len ~ dose, data = ToothGrowth_VC)
+res_OJ <- lm(len ~ dose, data = ToothGrowth_OJ)
+summary(res_VC)
+summary(res_OJ)
+```
+
+```{r}
+ToothGrowth$dose=as.factor(ToothGrowth$dose)
+ggplot(ToothGrowth, aes(x=dose,y=len))+geom_boxplot(aes(fill = dose)) +
+      ggtitle("Fig. 2, Tooth Growth Dependence on Dose and Supplement Type") +
+      facet_grid(.~supp) + 
+      theme(axis.title.y =  element_text(colour="gray20",size=12,angle=90,hjust=.5,vjust=1)) +
+      labs(x = "Dose of Vitamine C in mg/day", y = "Length of odontoblasts [a.u.]")
+```
+
+
+We observe that the length of otontoblasts (tooth growth) show a positve linear correlation with the dose level yielding slopes of 11,7 (VC) and 7,8 (OJ) (Fig. 1).  The tooth growth increases (median) with the amount of dose for all dose levels (Fig. 2). In order to verify this first impression lets do statistical testing. 
+
+
+## Hypothesis Testing
+
+**1. Does the supply method (VC: ascorbic acid or OJ: orange juice) has an effect on tooth growth?**
+
+First test if the variances of this two samples are equal by using the F-test assuming that they are normally distributed?
+ 
+```{r}
+var.test(len ~ supp, data = ToothGrowth)
+```
+
+**Result**: A p-value of p = 0.23 was obtainted, which is greather than the significance level of 0.05. To conclude, the two variances do not significantly differ from each other.  
+
+Based on the variance test use a two-sample t-test with the following null hypothesis: 
+
+**H0: Supply method does not affect the tooth growth**
+
+```{r}
+t.test(len~supp, data=ToothGrowth, conf.level = 0.95, 
+       alternative="two.sided", var.equal = TRUE, paired = FALSE)
+```
+
+**Result & Conclusion**:
+A p-value of 0.06 was obtained and the confidence interval of the test contains zero.
+We conclude that we can’t reject the null hypothesis. 
+This means that there is *no significant difference* between the supply methods ascorbic acid and orange juice.
+
+**2. Does the dosis level has an effect on tooth growth?**
+
+Based on our explorative data analysis (ref. Fig. 2) we will compare the two samples with dose level 1-2 mg and 0.5-2 mg per day for the supply method orange juice, since those apparently show the smallest and largest difference in tooth length.  To test our hypothesis we use a two-sided-unpaired Welch t-test assuming unequal variance with significance level 0.05. 
+
+**H0: Dose level does not affect the tooth growth**
+
+```{r}
+t.test(ToothGrowth_OJ$len[ToothGrowth_OJ$dose == 1], 
+       ToothGrowth_OJ$len[ToothGrowth_OJ$dose == 2], paired = FALSE, var.equal = FALSE)
+```
+
+```{r}
+t.test(ToothGrowth_OJ$len[ToothGrowth_OJ$dose == 0.5], 
+       ToothGrowth_OJ$len[ToothGrowth_OJ$dose == 2], paired = FALSE, var.equal = FALSE)
+```
+
+**Result & Conclusion**: 
+P-values of 0.04 / 1.3E-6 were obtained and the confidence intervals do not not contain zero.
+So we conclude to reject in both cases the null hypothesis. 
+So we state that the dose level has an *statistically significant effect* on the length of the odontoblasts (tooth growth).
